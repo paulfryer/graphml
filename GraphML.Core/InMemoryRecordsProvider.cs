@@ -14,7 +14,7 @@ namespace GraphML.Core
             RecordSources = recordSources;
         }
 
-        public async Task<IEnumerable<TSource>> GetRecords<TSource>(Func<TSource, bool> predicate)
+        public async Task<IEnumerable<TSource>> GetRecords<TSource>(Func<TSource, bool> predicate) where TSource : class
         {
             var recordSource = RecordSources.Single(list => list.GetType().GenericTypeArguments[0] == typeof(TSource)).Cast<TSource>();
             return predicate == null ? recordSource : recordSource.Where(predicate);

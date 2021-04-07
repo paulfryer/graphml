@@ -15,9 +15,9 @@ namespace GraphML.Tests
 
             var people = new List<Person>
             {
-                new Person {Id = "1", Name = "Person1"},
-                new Person {Id = "2", Name = "Person2"},
-                new Person{Id = "3", Name = "Person3"}
+                new Person {Id = "1", Name = "Person1", FavoritePersonId = "3"},
+                new Person {Id = "2", Name = "Person2", FavoritePersonId = "3"},
+                new Person{Id = "3", Name = "Person3", FavoritePersonId = "1"}
             };
 
             var friendRelationships = new List<FriendRelationship>
@@ -30,11 +30,13 @@ namespace GraphML.Tests
             IFileStore fileStore = new LocalFileStore();
             var graph = new Graph(recordsProvider, fileStore);
 
+            graph.AddEdgeType<Person, Person>(p => p.Id, p => p.FavoritePersonId);
             graph.AddEdgeType<Person, Person, FriendRelationship>(p => p.SourcePersonId, p => p.DestinationPersonId);
+            
             graph.AddNodeType<Person>(p => p.Id);
 
             Assert.IsTrue(graph.NodeTypes.Count == 1);
-            Assert.IsTrue(graph.EdgeTypes.Count == 1);
+            Assert.IsTrue(graph.EdgeTypes.Count == 2);
 
             await graph.SaveEdgesAndNodesToCsv();
 
@@ -48,6 +50,8 @@ namespace GraphML.Tests
             public string Id { get; set; }
 
             public string Name { get; set; }
+
+            public string FavoritePersonId { get; set; }
         }
 
 

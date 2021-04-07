@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Net.NetworkInformation;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,20 +9,32 @@ namespace GraphML.Core
 {
     public class Graph : IGraph
     {
-        public IRecordsProvider RecordsProvider { get; }
-        public IFileStore FileStore { get; }
-
         public Graph(IRecordsProvider recordsProvider, IFileStore fileStore)
         {
             RecordsProvider = recordsProvider;
             FileStore = fileStore;
             EdgeTypes = new List<IEdgeType>();
             NodeTypes = new List<INodeType>();
+            GraphId = $"graph-{DateTime.MaxValue.Ticks - DateTime.UtcNow.Ticks:10}";
         }
+
+        public IRecordsProvider RecordsProvider { get; }
+        public IFileStore FileStore { get; }
 
         public List<IEdgeType> EdgeTypes { get; }
         public List<INodeType> NodeTypes { get; }
+        public string GraphId { get; }
 
+
+        public void AddEdgeType<TFrom, TTo>(
+            Expression<Func<TFrom, dynamic>> fromKey,
+            Expression<Func<TFrom, dynamic>> toKey,
+            Func<TFrom, bool> predicate = null,
+            params Expression<Func<TFrom, dynamic>>[] properties)
+            where TFrom : class where TTo : class
+        {
+            AddEdgeType<TFrom, TTo, TFrom>(fromKey, toKey, predicate, properties);
+        }
 
         public void AddEdgeType<TFrom, TTo, TSource>(
             Expression<Func<TSource, dynamic>> fromKey,
@@ -69,8 +78,9 @@ namespace GraphML.Core
                 {
                     var method = GetType().GetMethod("SaveEdgesAsCsv");
                     var generic = method.MakeGenericMethod(edgeType.FromType, edgeType.ToType, edgeType.SourceType);
-                    tasks.Add(Task.Run(() => (Task)generic.Invoke(this, new object[] { edgeType })));
+                    tasks.Add(Task.Run(() => (Task) generic.Invoke(this, new object[] {edgeType})));
                 }
+
                 await Task.WhenAll(tasks);
             }
 
@@ -80,8 +90,9 @@ namespace GraphML.Core
                 {
                     var method = GetType().GetMethod("SaveNodesAsCsv");
                     var generic = method.MakeGenericMethod(nodeType.NType, nodeType.SourceType);
-                    tasks.Add(Task.Run(() => (Task)generic.Invoke(this, new object[] { nodeType })));
+                    tasks.Add(Task.Run(() => (Task) generic.Invoke(this, new object[] {nodeType})));
                 }
+
                 await Task.WhenAll(tasks);
             }
         }
@@ -90,8 +101,8 @@ namespace GraphML.Core
             EdgeType<TFrom, TTo, TSource> edgeType)
             where TSource : class
         {
-          //  if (csvFormat != CsvFormat.AutoTrainer)
-          //      throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
+            //  if (csvFormat != CsvFormat.AutoTrainer)
+            //      throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
 
             try
             {
@@ -140,17 +151,18 @@ namespace GraphML.Core
                 throw;
             }
         }
-        
+
         public async Task SaveNodesAsCsv<TNode, TSource>(NodeType<TNode, TSource> nodeType)
             where TNode : class
+            where TSource : class
         {
-          //  if (csvFormat != CsvFormat.AutoTrainer)
-          //      throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
+            //  if (csvFormat != CsvFormat.AutoTrainer)
+            //      throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
 
             try
             {
                 var idName = nodeType.Id.GetPropertyName();
-                var propertyTypes = new Dictionary<string, System.Type>();
+                var propertyTypes = new Dictionary<string, Type>();
                 if (nodeType.Properties.Any())
                     foreach (var property in nodeType.Properties)
                     {
@@ -192,7 +204,7 @@ namespace GraphML.Core
 
                     sb.AppendLine();
                 }
-                
+
                 await FileStore.SaveFile($"{nodeType.Label}.csv", "nodes", sb.ToString());
             }
             catch (Exception e)

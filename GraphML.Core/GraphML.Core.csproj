@@ -2,6 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Version>1.0.2</Version>
+    <Authors>Paul Fryer</Authors>
+    <Company>AWS</Company>
+    <Description>A .net core framework for building graphs to be used with Graph ML algorithms.</Description>
+    <Copyright>Apache 2.0</Copyright>
   </PropertyGroup>
 
 </Project>

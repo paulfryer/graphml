@@ -8,7 +8,7 @@ namespace GraphML.Core
         List<IEdgeType> EdgeTypes { get;  }
         List<INodeType> NodeTypes { get; }
 
-
+        string GraphId { get; }
 
     }
 }

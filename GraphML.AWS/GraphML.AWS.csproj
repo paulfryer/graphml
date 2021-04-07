@@ -4,4 +4,9 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.S3" Version="3.7.0.9" />
+    <PackageReference Include="GraphML.Core" Version="1.0.1" />
+  </ItemGroup>
+
 </Project>
