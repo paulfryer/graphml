@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net.NetworkInformation;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,11 +12,13 @@ namespace GraphML.Core
 {
     public class Graph : IGraph
     {
-        public IGraphRecordsProvider GraphRecordsProvider { get; }
+        public IRecordsProvider RecordsProvider { get; }
+        public IFileStore FileStore { get; }
 
-        protected Graph(IGraphRecordsProvider graphRecordsProvider)
+        public Graph(IRecordsProvider recordsProvider, IFileStore fileStore)
         {
-            GraphRecordsProvider = graphRecordsProvider;
+            RecordsProvider = recordsProvider;
+            FileStore = fileStore;
             EdgeTypes = new List<IEdgeType>();
             NodeTypes = new List<INodeType>();
         }
@@ -41,8 +45,8 @@ namespace GraphML.Core
             Func<TSource, bool> predicate = null,
             params Expression<Func<TSource, dynamic>>[] properties) where TNode : class
         {
-            if (NodeTypes.Any(n => n.NodeType == typeof(TNode)))
-                throw new Exception($"NodeType already added: {typeof(TNode)}");
+            if (NodeTypes.Any(n => n.GetType() == typeof(TNode)))
+                throw new Exception($"INodeType already added: {typeof(TNode)}");
             var nodeType = new NodeType<TNode, TSource>(id, predicate, properties);
             NodeTypes.Add(nodeType);
         }
@@ -67,7 +71,7 @@ namespace GraphML.Core
                 foreach (var nodeType in batch)
                 {
                     var method = GetType().GetMethod("SaveNodesAsCsv");
-                    var generic = method.MakeGenericMethod(nodeType.NodeType, nodeType.SourceType);
+                    var generic = method.MakeGenericMethod(nodeType.GetType(), nodeType.SourceType);
                     tasks.Add(Task.Run(() => (Task)generic.Invoke(this, new object[] { nodeType })));
                 }
                 await Task.WhenAll(tasks);
@@ -96,7 +100,7 @@ namespace GraphML.Core
                     }
 
                 sb.AppendLine();
-                var records = await GraphRecordsProvider.GetEdges(edgeType.Predicate);
+                var records = await RecordsProvider.GetRecords(edgeType.Predicate);
                 foreach (var record in records)
                 {
                     var fromValue = edgeType.SourceType.GetProperty(fromPropertyName).GetValue(record);
@@ -121,7 +125,7 @@ namespace GraphML.Core
                     sb.AppendLine();
                 }
 
-                return sb.ToString();
+                await FileStore.SaveFile($"{edgeType.Label}.csv", "edges", sb.ToString());
             }
             catch (Exception e)
             {
@@ -130,7 +134,7 @@ namespace GraphML.Core
             }
         }
         
-        public string SaveNodesAsCsv<TNode, TSource>(NodeType<TNode, TSource> nodeType,
+        public async Task SaveNodesAsCsv<TNode, TSource>(NodeType<TNode, TSource> nodeType,
             CsvFormat csvFormat = CsvFormat.AutoTrainer)
             where TNode : class
         {
@@ -140,7 +144,7 @@ namespace GraphML.Core
             try
             {
                 var idName = nodeType.Id.GetPropertyName();
-                var propertyTypes = new Dictionary<string, Type>();
+                var propertyTypes = new Dictionary<string, System.Type>();
                 if (nodeType.Properties.Any())
                     foreach (var property in nodeType.Properties)
                     {
@@ -157,13 +161,13 @@ namespace GraphML.Core
                     sb.Append($",{property.Key}");
                 sb.AppendLine();
 
-
-                foreach (var record in GetNodes(nodeType.Predicate))
+                var records = await RecordsProvider.GetRecords(nodeType.Predicate);
+                foreach (var record in records)
                 {
                     try
                     {
                         var idValue = nodeType.SourceType.GetProperty(idName).GetValue(record);
-                        sb.Append($"{idValue},{nodeType.NodeType.Name}");
+                        sb.Append($"{idValue},{nodeType.Label}");
                         foreach (var property in propertyTypes)
                         {
                             string propertyValue = null;
@@ -182,8 +186,8 @@ namespace GraphML.Core
 
                     sb.AppendLine();
                 }
-
-                return sb.ToString();
+                
+                await FileStore.SaveFile($"{nodeType.Label}.csv", "nodes", sb.ToString());
             }
             catch (Exception e)
             {

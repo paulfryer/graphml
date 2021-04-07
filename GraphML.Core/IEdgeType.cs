@@ -6,10 +6,10 @@ namespace GraphML.Core
     {
         public string Label { get; }
 
-        public Type FromType { get; }
+        public System.Type FromType { get; }
 
-        public Type ToType { get; }
+        public System.Type ToType { get; }
 
-        public Type SourceType { get; }
+        public System.Type SourceType { get; }
     }
 }

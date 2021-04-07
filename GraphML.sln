@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphML.DB", "GraphML.DB\Gr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphML.AWS", "GraphML.AWS\GraphML.AWS.csproj", "{7D6A4243-D6DF-49F0-A49D-422B2884C214}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphML.Tests", "GraphML.Tests\GraphML.Tests.csproj", "{224A5FD7-52DE-4B95-9191-1B0716C85951}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{7D6A4243-D6DF-49F0-A49D-422B2884C214}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D6A4243-D6DF-49F0-A49D-422B2884C214}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7D6A4243-D6DF-49F0-A49D-422B2884C214}.Release|Any CPU.Build.0 = Release|Any CPU
+		{224A5FD7-52DE-4B95-9191-1B0716C85951}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{224A5FD7-52DE-4B95-9191-1B0716C85951}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{224A5FD7-52DE-4B95-9191-1B0716C85951}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{224A5FD7-52DE-4B95-9191-1B0716C85951}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

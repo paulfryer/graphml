@@ -18,7 +18,7 @@ namespace GraphML.Core
             Properties = properties;
         }
 
-        public Type NodeType => typeof(TNode);
-        public Type SourceType => typeof(TSource);
+       public string Label => typeof(TNode).Name;
+        public System.Type SourceType => typeof(TSource);
     }
 }

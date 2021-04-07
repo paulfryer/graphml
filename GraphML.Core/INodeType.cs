@@ -4,7 +4,7 @@ namespace GraphML.Core
 {
     public interface INodeType
     {
-        Type NodeType { get; }
+        string Label { get; }
 
         Type SourceType { get; }
     }

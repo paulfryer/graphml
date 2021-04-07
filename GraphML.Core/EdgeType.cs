@@ -24,9 +24,9 @@ namespace GraphML.Core
         public string Label => $"{FromType.Name}_{To.GetPropertyName()}_{ToType.Name}";
 
 
-        public Type FromType => typeof(TFrom);
-        public Type ToType => typeof(TTo);
+        public System.Type FromType => typeof(TFrom);
+        public System.Type ToType => typeof(TTo);
 
-        public Type SourceType => typeof(TSource);
+        public System.Type SourceType => typeof(TSource);
     }
 }
