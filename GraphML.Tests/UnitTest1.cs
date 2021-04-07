@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using GraphML.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -8,7 +10,7 @@ namespace GraphML.Tests
     public class UnitTest1
     {
         [TestMethod]
-        public void TestMethod1()
+        public async Task GraphSaves()
         {
 
             var people = new List<Person>
@@ -29,8 +31,15 @@ namespace GraphML.Tests
             var graph = new Graph(recordsProvider, fileStore);
 
             graph.AddEdgeType<Person, Person, FriendRelationship>(p => p.SourcePersonId, p => p.DestinationPersonId);
+            graph.AddNodeType<Person>(p => p.Id);
 
+            Assert.IsTrue(graph.NodeTypes.Count == 1);
+            Assert.IsTrue(graph.EdgeTypes.Count == 1);
 
+            await graph.SaveEdgesAndNodesToCsv();
+
+            Assert.IsTrue(Directory.Exists("nodes"));
+            Assert.IsTrue(Directory.Exists("edges"));
         }
 
 

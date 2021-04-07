@@ -6,6 +6,7 @@ namespace GraphML.Core
     {
         string Label { get; }
 
+        Type NType { get;  }
         Type SourceType { get; }
     }
 }

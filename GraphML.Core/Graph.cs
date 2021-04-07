@@ -40,6 +40,14 @@ namespace GraphML.Core
             EdgeTypes.Add(edgeType);
         }
 
+        public void AddNodeType<TNode>(
+            Expression<Func<TNode, dynamic>> id,
+            Func<TNode, bool> predicate = null,
+            params Expression<Func<TNode, dynamic>>[] properties) where TNode : class
+        {
+            AddNodeType<TNode, TNode>(id, predicate, properties);
+        }
+
         public void AddNodeType<TNode, TSource>(
             Expression<Func<TSource, dynamic>> id,
             Func<TSource, bool> predicate = null,
@@ -52,7 +60,7 @@ namespace GraphML.Core
         }
 
 
-        public async Task SaveEdgesAndNodesToCsv(int parallelLevel = 10)
+        public async Task SaveEdgesAndNodesToCsv(int parallelLevel = 10, CsvFormat csvFormat = CsvFormat.AutoTrainer)
         {
             var tasks = new List<Task>();
             foreach (var batch in EdgeTypes.Batch(parallelLevel))
@@ -71,7 +79,7 @@ namespace GraphML.Core
                 foreach (var nodeType in batch)
                 {
                     var method = GetType().GetMethod("SaveNodesAsCsv");
-                    var generic = method.MakeGenericMethod(nodeType.GetType(), nodeType.SourceType);
+                    var generic = method.MakeGenericMethod(nodeType.NType, nodeType.SourceType);
                     tasks.Add(Task.Run(() => (Task)generic.Invoke(this, new object[] { nodeType })));
                 }
                 await Task.WhenAll(tasks);
@@ -79,12 +87,11 @@ namespace GraphML.Core
         }
 
         public async Task SaveEdgesAsCsv<TFrom, TTo, TSource>(
-            EdgeType<TFrom, TTo, TSource> edgeType,
-            CsvFormat csvFormat = CsvFormat.AutoTrainer)
+            EdgeType<TFrom, TTo, TSource> edgeType)
             where TSource : class
         {
-            if (csvFormat != CsvFormat.AutoTrainer)
-                throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
+          //  if (csvFormat != CsvFormat.AutoTrainer)
+          //      throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
 
             try
             {
@@ -134,12 +141,11 @@ namespace GraphML.Core
             }
         }
         
-        public async Task SaveNodesAsCsv<TNode, TSource>(NodeType<TNode, TSource> nodeType,
-            CsvFormat csvFormat = CsvFormat.AutoTrainer)
+        public async Task SaveNodesAsCsv<TNode, TSource>(NodeType<TNode, TSource> nodeType)
             where TNode : class
         {
-            if (csvFormat != CsvFormat.AutoTrainer)
-                throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
+          //  if (csvFormat != CsvFormat.AutoTrainer)
+          //      throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
 
             try
             {

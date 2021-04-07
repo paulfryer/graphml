@@ -19,6 +19,7 @@ namespace GraphML.Core
         }
 
        public string Label => typeof(TNode).Name;
-        public System.Type SourceType => typeof(TSource);
+       public Type NType => typeof(TNode);
+       public System.Type SourceType => typeof(TSource);
     }
 }
