@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -35,6 +36,31 @@ namespace GraphML.Core
             }
 
             return propertyName;
+        }
+
+        public static Type GetPropertyType<T>(this Expression<Func<T, dynamic>> property)
+        {
+            Type propertyType;
+            switch (property.Body)
+            {
+                case UnaryExpression unary:
+                    switch (unary.Operand)
+                    {
+                        case MemberExpression memberExpression:
+                            propertyType = ((PropertyInfo)memberExpression.Member).PropertyType; 
+                            break;
+                        default:
+                            throw new NotImplementedException();
+                    }
+                    break;
+                case MemberExpression member:
+                    propertyType = ((PropertyInfo)member.Member).PropertyType; 
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            return propertyType;
         }
 
         public static string CreateMD5(this string input)

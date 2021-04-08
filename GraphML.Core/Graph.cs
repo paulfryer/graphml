@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -87,6 +88,51 @@ namespace GraphML.Core
         }
 
 
+        public void AddNodeType<TNode>(
+            Func<TNode, bool> predicate = null,
+            params Expression<Func<TNode, dynamic>>[] properties) where TNode : class
+        {
+            var id = GetKeyFunction<TNode>();
+            if (id == null)
+                throw new Exception("Id property is required.");
+            AddNodeType<TNode, TNode>(id, predicate, properties);
+        }
+
+        public void AddEdgeType<TFrom, TTo>(
+            Expression<Func<TFrom, dynamic>> toKey,
+            params Expression<Func<TFrom, dynamic>>[] properties)
+            where TFrom : class where TTo : class
+        {
+            if (NodeTypes.All(n => n.NType != typeof(TFrom)) && GetKeyFunction<TFrom>() != null)
+                AddNodeType<TFrom>();
+            if (NodeTypes.All(n => n.NType != typeof(TTo)) && GetKeyFunction<TTo>() != null)
+                AddNodeType<TTo>();
+
+            var fromKey = GetKeyFunction<TFrom>();
+            AddEdgeType<TFrom, TTo, TFrom>(fromKey, toKey, null, properties);
+        }
+
+        private static Expression<Func<T, dynamic>> GetKeyFunction<T>()
+        {
+            var nodeType = typeof(T);
+            var nodeProperties = nodeType.GetProperties().ToList();
+            var keyedProperties = nodeProperties
+                .Where(p => p.CustomAttributes.Any(ca => ca.AttributeType.Name == "KeyAttribute"))
+                .ToList();
+            if (keyedProperties.Count > 1)
+                throw new Exception("Only 1 keyed property is supported. Found more than 1.");
+            if (keyedProperties.Count == 0)
+                return null;
+            var keyProperty = keyedProperties.Single();
+            var instance = Expression.Parameter(typeof(T), "instance");
+            var value = Expression.Property(instance, keyProperty);
+            return Expression.Lambda<Func<T, dynamic>>(
+                keyProperty.PropertyType.IsValueType
+                    ? Expression.Convert(value, typeof(T))
+                    : Expression.TypeAs(value, typeof(T)),
+                instance);
+        }
+
         public async Task SaveEdgesAndNodesToCsv(int parallelLevel = 10, CsvFormat csvFormat = CsvFormat.AutoTrainer)
         {
             var tasks = new List<Task>();
@@ -108,12 +154,13 @@ namespace GraphML.Core
                 {
                     var method = GetType().GetMethod("SaveNodesAsCsv");
                     var generic = method.MakeGenericMethod(nodeType.NType, nodeType.SourceType);
-                    tasks.Add(Task.Run(() => (Task) generic.Invoke(this, new object[] {nodeType})));
+                    tasks.Add(Task.Run(() => (Task) generic.Invoke(this, new object[] {nodeType, csvFormat})));
                 }
 
                 await Task.WhenAll(tasks);
             }
         }
+
 
         public async Task SaveEdgesAsCsv<TFrom, TTo, TSource>(
             EdgeType<TFrom, TTo, TSource> edgeType, CsvFormat csvFormat)
@@ -135,8 +182,8 @@ namespace GraphML.Core
                         sb.Append($",{propertyName}");
                         if (csvFormat == CsvFormat.Neptune)
                         {
-                            var propertyType = "String"; // TODO: look this up based on the property type.
-                            sb.Append($":{propertyType}");
+                            var propertyTypeName = GetNeptunePropertyTypeName(property.GetPropertyType());
+                            sb.Append($":{propertyTypeName}");
                         }
                     }
 
@@ -152,14 +199,20 @@ namespace GraphML.Core
 
                     var id = $"{edgeType.FromType.Name}:{fromValue}:{edgeType.ToType.Name}:{toValue}".CreateMD5();
 
-                    sb.Append(
-                        $"{id},{fromValue},{toValue},{edgeType.Label},{edgeType.FromType.Name},{edgeType.ToType.Name}");
+                    sb.Append($"{id},{fromValue},{toValue},{edgeType.Label}");
+
+                    if (csvFormat == CsvFormat.AutoTrainer)
+                        sb.Append(",{ edgeType.FromType.Name},{ edgeType.ToType.Name}");
 
                     if (edgeType.Properties.Any())
                         foreach (var property in edgeType.Properties)
                         {
                             var propertyName = property.GetPropertyName();
-                            var value = edgeType.SourceType.GetProperty(propertyName).GetValue(record);
+                            var value = Convert.ToString(edgeType.SourceType.GetProperty(propertyName).GetValue(record));
+                            if (csvFormat == CsvFormat.Neptune)
+                            {
+                                value = GetNeptunePropertyValue(property.GetPropertyType(), value);
+                            }
                             sb.Append($",{value}");
                         }
 
@@ -175,7 +228,29 @@ namespace GraphML.Core
             }
         }
 
-        public async Task SaveNodesAsCsv<TNode, TSource>(NodeType<TNode, TSource> nodeType)
+        private string GetNeptunePropertyTypeName(Type propertyType)
+        {
+            return propertyType.Name switch
+            {
+                "DateTime" => "Date",
+                "Int32" => "Int",
+                _ => propertyType.Name
+            };
+        }
+
+        private string GetNeptunePropertyValue(Type propertyType, string value)
+        {
+            if (propertyType == typeof(DateTime))
+            {
+                var dateValue = Convert.ToDateTime(value);
+                value = dateValue == DateTime.MinValue ? null :
+                    dateValue.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            }
+
+            return value;
+        }
+
+        public async Task SaveNodesAsCsv<TNode, TSource>(NodeType<TNode, TSource> nodeType, CsvFormat csvFormat)
             where TNode : class
             where TSource : class
         {
@@ -195,8 +270,22 @@ namespace GraphML.Core
 
 
                 sb.Append("~id,~label");
-                foreach (var property in propertyTypes)
-                    sb.Append($",{property.Key}");
+
+                if (nodeType.Properties.Any())
+                    foreach (var property in nodeType.Properties)
+                    {
+                        var propertyName = property.GetPropertyName();
+                        
+
+                        sb.Append($",{propertyName}");
+                        
+                        if (csvFormat == CsvFormat.Neptune)
+                        {
+                            var propertyTypeName = GetNeptunePropertyTypeName(property.GetPropertyType());
+                            sb.Append($":{propertyTypeName}");
+                        }
+                    }
+
                 sb.AppendLine();
 
                 var records = await RecordsProvider.GetRecords(nodeType.Predicate);
@@ -213,7 +302,10 @@ namespace GraphML.Core
                             propertyValue =
                                 Convert.ToString(nodeType.SourceType.GetProperty(property.Key).GetValue(record));
 
-
+                            if (csvFormat == CsvFormat.Neptune)
+                            {
+                                propertyValue = GetNeptunePropertyValue(property.Value, propertyValue);
+                            }
                             sb.Append($",{propertyValue}");
                         }
                     }
