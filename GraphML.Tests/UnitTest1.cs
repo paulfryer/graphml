@@ -19,30 +19,40 @@ namespace GraphML.Tests
 
             var people = new List<Person>
             {
-                new Person {Id = "1", Name = "Person1", FavoritePersonId = "3", NickName = "Wheels", Age = 25, AverageIncome = 80000, HighSchoolGraduationDate = DateTime.UtcNow.Subtract(TimeSpan.FromDays(1000))},
-                new Person {Id = "2", Name = "Person2", NickName = "Baskets", FavoritePersonId = "3", Age = 35, AverageIncome = 125000},
-                new Person{Id = "3", Name = "Person3", FavoritePersonId = "1", Age = 45, AverageIncome = 150000, HighSchoolGraduationDate = DateTime.Now.Subtract(TimeSpan.FromDays(5000))}
+                new Person {Id = 1, Name = "Person1", CityCode = "SEA", FavoritePersonId = 3, NickName = "Wheels", Age = 25, AverageIncome = 80000, HighSchoolGraduationDate = DateTime.UtcNow.Subtract(TimeSpan.FromDays(1000))},
+                new Person {Id = 2, Name = "Person2", CityCode = "SFO", NickName = "Baskets", FavoritePersonId = 3, Age = 35, AverageIncome = 125000},
+                new Person{Id = 3, Name = "Person3", CityCode = "LAX", FavoritePersonId = 1, Age = 45, AverageIncome = 150000, HighSchoolGraduationDate = DateTime.Now.Subtract(TimeSpan.FromDays(5000))}
             };
 
             var friendRelationships = new List<FriendRelationship>
             {
-                new FriendRelationship {SourcePersonId = "1", DestinationPersonId = "2", DateMet = DateTime.Now.Subtract(TimeSpan.FromDays(100))},
-                new FriendRelationship {SourcePersonId = "2", DestinationPersonId = "3", DateMet = DateTime.Now.Subtract(TimeSpan.FromDays(10))}
+                new FriendRelationship {SourcePersonId = 1, DestinationPersonId = 2, DateMet = DateTime.Now.Subtract(TimeSpan.FromDays(100))},
+                new FriendRelationship {SourcePersonId = 2, DestinationPersonId =3, DateMet = DateTime.Now.Subtract(TimeSpan.FromDays(10))}
             };
 
-            IRecordsProvider recordsProvider = new InMemoryRecordsProvider(people, friendRelationships);
+            var cities = new List<City>
+            {
+                new City {Code = "SEA", Name = "Seattle, WA"},
+                new City {Code = "NYC", Name = "New\" York City"},
+                new City {Code = "LAX", Name = "Los Angeles"},
+                new City {Code = "SFO", Name = "San Francisco"}
+            };
+
+            IRecordsProvider recordsProvider = new InMemoryRecordsProvider(people, friendRelationships, cities);
             IFileStore fileStore = new LocalFileStore();
             var graph = new Graph(recordsProvider, fileStore);
 
 
             graph.AddNodeType<Person>(p => p.Id, null, p => p.Age, p => p.AverageIncome, 
                 p => p.HighSchoolGraduationDate, p => p.NickName);
+            graph.AddNodeType<City>(c => c.Code, null, c => c.Name);
 
             graph.AddEdgeType<Person, Person>(p => p.FavoritePersonId);
             graph.AddEdgeType<Person, Person, FriendRelationship>(p => p.SourcePersonId, p => p.DestinationPersonId, p => p.DateMet);
-            
-            Assert.IsTrue(graph.NodeTypes.Count == 1);
-            Assert.IsTrue(graph.EdgeTypes.Count == 2);
+            graph.AddEdgeType<Person, City>(p => p.CityCode);
+
+            Assert.IsTrue(graph.NodeTypes.Count == 2);
+            Assert.IsTrue(graph.EdgeTypes.Count == 3);
 
             await graph.SaveEdgesAndNodesToCsv(10, CsvFormat.Neptune);
 
@@ -52,16 +62,26 @@ namespace GraphML.Tests
         }
 
 
+        public class City
+        {
+            [Key]
+            public string Code { get; set; }
+
+            public string Name { get; set; }
+            }
+
         public class Person
         {
             [Key]
-            public string Id { get; set; }
+            public int Id { get; set; }
+
+            public string CityCode { get; set; }
 
             public string Name { get; set; }
 
             public string NickName { get; set; }
 
-            public string FavoritePersonId { get; set; }
+            public int FavoritePersonId { get; set; }
 
             public int Age { get; set; }
 
@@ -73,8 +93,8 @@ namespace GraphML.Tests
 
         public class FriendRelationship
         {
-            public string SourcePersonId { get; set; }
-            public string DestinationPersonId { get; set; }
+            public int SourcePersonId { get; set; }
+            public int DestinationPersonId { get; set; }
 
             public DateTime DateMet { get; set; }
         }

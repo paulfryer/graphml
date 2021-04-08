@@ -126,27 +126,22 @@ namespace GraphML.Core
             var keyProperty = keyedProperties.Single();
             var instance = Expression.Parameter(typeof(T), "instance");
             var value = Expression.Property(instance, keyProperty);
+
             return Expression.Lambda<Func<T, dynamic>>(
-                keyProperty.PropertyType.IsValueType
-                    ? Expression.Convert(value, typeof(T))
-                    : Expression.TypeAs(value, typeof(T)),
+               Expression.TypeAs(value, typeof(T)),
                 instance);
+
+                /*
+                return Expression.Lambda<Func<T, dynamic>>(
+                    keyProperty.PropertyType.IsValueType
+                        ? Expression.Convert(value, typeof(T))
+                        : Expression.TypeAs(value, typeof(T)),
+                    instance);*/
         }
 
         public async Task SaveEdgesAndNodesToCsv(int parallelLevel = 10, CsvFormat csvFormat = CsvFormat.AutoTrainer)
         {
             var tasks = new List<Task>();
-            foreach (var batch in EdgeTypes.Batch(parallelLevel))
-            {
-                foreach (var edgeType in batch)
-                {
-                    var method = GetType().GetMethod("SaveEdgesAsCsv");
-                    var generic = method.MakeGenericMethod(edgeType.FromType, edgeType.ToType, edgeType.SourceType);
-                    tasks.Add(Task.Run(() => (Task) generic.Invoke(this, new object[] {edgeType, csvFormat})));
-                }
-
-                await Task.WhenAll(tasks);
-            }
 
             foreach (var batch in NodeTypes.Batch(parallelLevel))
             {
@@ -155,6 +150,18 @@ namespace GraphML.Core
                     var method = GetType().GetMethod("SaveNodesAsCsv");
                     var generic = method.MakeGenericMethod(nodeType.NType, nodeType.SourceType);
                     tasks.Add(Task.Run(() => (Task) generic.Invoke(this, new object[] {nodeType, csvFormat})));
+                }
+
+                await Task.WhenAll(tasks);
+            }
+
+            foreach (var batch in EdgeTypes.Batch(parallelLevel))
+            {
+                foreach (var edgeType in batch)
+                {
+                    var method = GetType().GetMethod("SaveEdgesAsCsv");
+                    var generic = method.MakeGenericMethod(edgeType.FromType, edgeType.ToType, edgeType.SourceType);
+                    tasks.Add(Task.Run(() => (Task)generic.Invoke(this, new object[] { edgeType, csvFormat })));
                 }
 
                 await Task.WhenAll(tasks);
@@ -213,6 +220,9 @@ namespace GraphML.Core
                             {
                                 value = GetNeptunePropertyValue(property.GetPropertyType(), value);
                             }
+
+                            if (value != null && value.Contains(","))
+                                value = $"\"{value.Replace("\"", "\"\"")}\"";
                             sb.Append($",{value}");
                         }
 
@@ -306,6 +316,8 @@ namespace GraphML.Core
                             {
                                 propertyValue = GetNeptunePropertyValue(property.Value, propertyValue);
                             }
+                            if (propertyValue != null && propertyValue.Contains(","))
+                                propertyValue = $"\"{propertyValue.Replace("\"", "\"\"")}\"";
                             sb.Append($",{propertyValue}");
                         }
                     }
