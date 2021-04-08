@@ -29,11 +29,29 @@ namespace GraphML.Core
         public void AddEdgeType<TFrom, TTo>(
             Expression<Func<TFrom, dynamic>> fromKey,
             Expression<Func<TFrom, dynamic>> toKey,
+            params Expression<Func<TFrom, dynamic>>[] properties)
+            where TFrom : class where TTo : class
+        {
+            AddEdgeType<TFrom, TTo, TFrom>(fromKey, toKey, null, properties);
+        }
+
+        public void AddEdgeType<TFrom, TTo>(
+            Expression<Func<TFrom, dynamic>> fromKey,
+            Expression<Func<TFrom, dynamic>> toKey,
             Func<TFrom, bool> predicate = null,
             params Expression<Func<TFrom, dynamic>>[] properties)
             where TFrom : class where TTo : class
         {
             AddEdgeType<TFrom, TTo, TFrom>(fromKey, toKey, predicate, properties);
+        }
+
+        public void AddEdgeType<TFrom, TTo, TSource>(
+            Expression<Func<TSource, dynamic>> fromKey,
+            Expression<Func<TSource, dynamic>> toKey,
+            params Expression<Func<TSource, dynamic>>[] properties)
+            where TFrom : class where TTo : class
+        {
+            AddEdgeType<TFrom, TTo, TSource>(fromKey, toKey, null, properties);
         }
 
         public void AddEdgeType<TFrom, TTo, TSource>(
@@ -78,7 +96,7 @@ namespace GraphML.Core
                 {
                     var method = GetType().GetMethod("SaveEdgesAsCsv");
                     var generic = method.MakeGenericMethod(edgeType.FromType, edgeType.ToType, edgeType.SourceType);
-                    tasks.Add(Task.Run(() => (Task) generic.Invoke(this, new object[] {edgeType})));
+                    tasks.Add(Task.Run(() => (Task) generic.Invoke(this, new object[] {edgeType, csvFormat})));
                 }
 
                 await Task.WhenAll(tasks);
@@ -98,23 +116,28 @@ namespace GraphML.Core
         }
 
         public async Task SaveEdgesAsCsv<TFrom, TTo, TSource>(
-            EdgeType<TFrom, TTo, TSource> edgeType)
+            EdgeType<TFrom, TTo, TSource> edgeType, CsvFormat csvFormat)
             where TSource : class
         {
-            //  if (csvFormat != CsvFormat.AutoTrainer)
-            //      throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
-
             try
             {
                 var fromPropertyName = edgeType.From.GetPropertyName();
                 var toPropertyName = edgeType.To.GetPropertyName();
                 var sb = new StringBuilder();
-                sb.Append("~id,~from,~to,~label,~fromLabels,~toLabels");
+                sb.Append("~id,~from,~to,~label");
+                if (csvFormat == CsvFormat.AutoTrainer)
+                    sb.Append(",~fromLabels,~toLabels");
+
                 if (edgeType.Properties.Any())
                     foreach (var property in edgeType.Properties)
                     {
                         var propertyName = property.GetPropertyName();
                         sb.Append($",{propertyName}");
+                        if (csvFormat == CsvFormat.Neptune)
+                        {
+                            var propertyType = "String"; // TODO: look this up based on the property type.
+                            sb.Append($":{propertyType}");
+                        }
                     }
 
                 sb.AppendLine();
@@ -143,7 +166,7 @@ namespace GraphML.Core
                     sb.AppendLine();
                 }
 
-                await FileStore.SaveFile($"{edgeType.Label}.csv", "edges", sb.ToString());
+                await FileStore.SaveFile(GraphId, "edges", $"{edgeType.Label}.csv", sb.ToString());
             }
             catch (Exception e)
             {
@@ -156,9 +179,6 @@ namespace GraphML.Core
             where TNode : class
             where TSource : class
         {
-            //  if (csvFormat != CsvFormat.AutoTrainer)
-            //      throw new NotImplementedException($"Unsupported csv format: {csvFormat}");
-
             try
             {
                 var idName = nodeType.Id.GetPropertyName();
@@ -205,7 +225,7 @@ namespace GraphML.Core
                     sb.AppendLine();
                 }
 
-                await FileStore.SaveFile($"{nodeType.Label}.csv", "nodes", sb.ToString());
+                await FileStore.SaveFile(GraphId, "nodes", $"{nodeType.Label}.csv", sb.ToString());
             }
             catch (Exception e)
             {

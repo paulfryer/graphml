@@ -4,6 +4,6 @@ namespace GraphML.Core
 {
     public interface IFileStore
     {
-        Task SaveFile(string fileName, string prefix, string body);
+        Task SaveFile(string graphId, string folder, string fileName, string body);
     }
 }
